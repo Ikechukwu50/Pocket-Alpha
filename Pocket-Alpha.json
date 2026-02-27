@@ -1,0 +1,235 @@
+{
+  "name": "Pocket-Alpha",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        -160
+      ],
+      "id": "81460fe6-630a-4e50-8401-58763e424913",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const topTen = [\n  { symbol: 'AAPL' },\n  { symbol: 'NVDA' },\n  { symbol: 'TSLA' },\n  { symbol: 'MSFT' },\n  { symbol: 'AMZN' },\n  { symbol: 'DANGCEM.LG' },\n  { symbol: 'MTNN.LG' },\n  { symbol: 'ZENITHBANK.LG' },\n  { symbol: 'GTCO.LG' },\n  { symbol: 'UBA.LG' }\n];\n\nreturn topTen.map(item => ({ json: item }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -160
+      ],
+      "id": "f5e79e1e-36db-4c36-a96d-c918541e77a4",
+      "name": "Stock List"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "c (Current Price) pc (Previous Close Price) symbol (The Stock Name)",
+        "include": "allFieldsExcept",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -160
+      ],
+      "id": "b083260c-58be-41d3-a9ce-fd791c4e3c36",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/everything?q=Nigeria Stock Market OR NGX OR Wall Street&sortBy=publishedAt&pageSize=5&apiKey=976ccd5b951c466cbc312c2be855aa6d",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        -160
+      ],
+      "id": "ecd50a82-feae-4ca4-a4bb-958d8dc24df0",
+      "name": "NGN",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://finnhub.io/api/v1/quote?symbol={{ $json.symbol }}&token=d6epcqpr01qksaq9e3mgd6epcqpr01qksaq9e3n0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        -160
+      ],
+      "id": "53230e60-8e42-4aa0-863d-f5e4eddbc8d3",
+      "name": "USA"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        64
+      ],
+      "id": "27584a43-1a6a-40c0-9ce7-453479284ff8",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "mxOD2IbUdIuYy7wy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1792219463",
+        "text": "={{ $node[\"Pocket Alpha\"].json.output }}\n",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1472,
+        -160
+      ],
+      "id": "de16573d-4953-4fa7-ae3f-e0f68d364243",
+      "name": "Send a text message",
+      "webhookId": "c5908286-4bfc-4f2d-85e5-678152d956f7",
+      "credentials": {
+        "telegramApi": {
+          "id": "BaMIhxHa8ZTuBqbh",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior Market Correspondent.\n​INPUT DATA:\n​Prices: {{ $node[\"Aggregate\"].json }}\n​Headlines: {{ $node[\"NGN\"].json.articles[0].title }}\n​TASK: Create a professional, spaced-out market report.\n​REPORT STRUCTURE:\n​🏦 MARKET INTELLIGENCE BRIEF\n​📰 Market Sentiment\n[Write a professional 3-sentence summary. Mention how the current global news is impacting both the Wall Street (US) and the NGX (Nigeria) outlook.]\n​🇺🇸 WALL STREET TOP PICKS\n​[Stock 1 Symbol]\n💰 Price: $[c] | Prev: $[pc]\n📊 Change: [Calculate % change]%\n🎯 Action: [BUY/SELL]\n💡 Reason: [Professional 1-sentence logic]\n​[Stock 2 Symbol]\n💰 Price: $[c] | Prev: $[pc]\n📊 Change: [Calculate % change]%\n🎯 Action: [BUY/SELL]\n💡 Reason: [Professional 1-sentence logic]\n​🇳🇬 NGX NIGERIA TOP PICKS\n​[Stock 1 Symbol]\n💰 Price: ₦[c] | Prev: ₦[pc]\n📊 Change: [Calculate % change]%\n🎯 Action: [BUY/SELL]\n💡 Reason: [Professional 1-sentence logic]\n​[Stock 2 Symbol]\n💰 Price: ₦[c] | Prev: ₦[pc]\n📊 Change: [Calculate % change]%\n🎯 Action: [BUY/SELL]\n💡 Reason: [Professional 1-sentence logic]\n​FORMATTING RULES:\n​NO '#' or '###' characters. Use BOLD for headers.\n​Use double line breaks between stocks to avoid clustering.\n​Use the ₦ symbol directly for Nigeria.\n​Ensure the 'Change' percentage is calculated for every stock.",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1120,
+        -160
+      ],
+      "id": "4f5755d9-f143-43f0-9d5a-d9834c35e0e6",
+      "name": "Pocket Alpha"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Stock List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock List": {
+      "main": [
+        [
+          {
+            "node": "USA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "NGN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "USA": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NGN": {
+      "main": [
+        [
+          {
+            "node": "Pocket Alpha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Pocket Alpha",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pocket Alpha": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d1773975-3342-4f85-bf3e-38d9bb8e94d1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5bf5f63beeb31621c2e06be4b139a744c9521f9761cf329a1f568302c6e44b5e"
+  },
+  "id": "N9Bd3VrKxAIjmpTf",
+  "tags": []
+}
